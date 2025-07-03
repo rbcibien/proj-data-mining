@@ -1,29 +1,50 @@
+import pandas as pd
+import joblib
 from pathlib import Path
-
-from loguru import logger
-from tqdm import tqdm
 import typer
+from loguru import logger
 
-from proj_data_mining_northwind.config import MODELS_DIR, PROCESSED_DATA_DIR
+from proj_data_mining_northwind import config
 
 app = typer.Typer()
 
 
+def predict_cluster(
+    recency: int,
+    frequency: int,
+    monetary: float,
+    model_path: Path = config.MODELS_DIR / "kmeans_model.joblib",
+    scaler_path: Path = config.MODELS_DIR / "scaler.joblib",
+) -> int:
+    """Predict the cluster for a new customer."""
+    logger.info(f"Loading model from: {model_path}")
+    model = joblib.load(model_path)
+    logger.info(f"Loading scaler from: {scaler_path}")
+    scaler = joblib.load(scaler_path)
+
+    # Create a DataFrame from the input data
+    new_data = pd.DataFrame(
+        [{"recency": recency, "frequency": frequency, "monetary": monetary}]
+    )
+
+    # Scale the new data
+    scaled_data = scaler.transform(new_data)
+
+    # Predict the cluster
+    prediction = model.predict(scaled_data)
+
+    return prediction[0]
+
+
 @app.command()
-def main(
-    # ---- REPLACE DEFAULT PATHS AS APPROPRIATE ----
-    features_path: Path = PROCESSED_DATA_DIR / "test_features.csv",
-    model_path: Path = MODELS_DIR / "model.pkl",
-    predictions_path: Path = PROCESSED_DATA_DIR / "test_predictions.csv",
-    # -----------------------------------------
+def predict(
+    recency: int = typer.Option(..., help="Recency value."),
+    frequency: int = typer.Option(..., help="Frequency value."),
+    monetary: float = typer.Option(..., help="Monetary value."),
 ):
-    # ---- REPLACE THIS WITH YOUR OWN CODE ----
-    logger.info("Performing inference for model...")
-    for i in tqdm(range(10), total=10):
-        if i == 5:
-            logger.info("Something happened for iteration 5.")
-    logger.success("Inference complete.")
-    # -----------------------------------------
+    """Predict the cluster for a new customer."""
+    cluster = predict_cluster(recency, frequency, monetary)
+    logger.info(f"The predicted cluster is: {cluster}")
 
 
 if __name__ == "__main__":
